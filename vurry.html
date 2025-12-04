@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mini 2D Tamagotchi — Single File</title>
+  <style>
+    :root{--bg:#f3f6fb;--card:#fff;--accent:#6c8cff;--danger:#ff6b6b}
+    *{box-sizing:border-box;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans KR', 'Malgun Gothic', sans-serif}
+    body{margin:0;background:linear-gradient(180deg,var(--bg) 0%, #e9f1ff 100%);padding:20px;display:flex;align-items:center;justify-content:center;height:100vh}
+    .wrap{width:100%;max-width:960px;background:var(--card);border-radius:14px;box-shadow:0 8px 30px rgba(24,39,75,.08);padding:18px;display:grid;grid-template-columns:360px 1fr;gap:18px}
+    header{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between}
+    h1{font-size:20px;margin:0}
+    .pet-card{background:linear-gradient(180deg,#fff 0,#f7fbff 100%);border-radius:12px;padding:18px;display:flex;flex-direction:column;align-items:center;gap:12px}
+    .pet-view{width:240px;height:240px;border-radius:12px;background:linear-gradient(180deg,#fff,#f1f7ff);display:flex;align-items:center;justify-content:center;position:relative;box-shadow:inset 0 -10px 30px rgba(49,84,255,.03);overflow:hidden}
+    /* overlay for background-change animations */
+    .bg-overlay{position:absolute;inset:0;border-radius:12px;background-size:cover;background-position:center;opacity:0;transition:opacity .35s ease;pointer-events:none;z-index:0}
+    /* simple pet using SVG-like markup (emoji + CSS) */
+    .pet-face{font-size:96px;filter:drop-shadow(0 6px 10px rgba(34,60,120,.12));transform-origin:center;transition:transform .2s;z-index:1;position:relative}
+    .breath{animation:breath 3000ms ease-in-out infinite}
+    @keyframes breath{0%{transform:scale(1)}50%{transform:scale(1.02)}100%{transform:scale(1)}}
+
+    .stats{width:100%;display:grid;gap:8px}
+    .stat{display:flex;align-items:center;gap:10px}
+    .stat strong{width:90px;font-size:13px}
+    .bar{flex:1;height:12px;background:#e6eefc;border-radius:999px;overflow:hidden}
+    .bar > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#7ae7c7)}
+
+    .controls{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+    .btn{padding:9px 12px;border-radius:10px;border:0;background:var(--accent);color:#fff;font-weight:600;cursor:pointer;box-shadow:0 6px 18px rgba(108,140,255,.12)}
+    .btn.secondary{background:#fff;color:var(--accent);border:1px solid rgba(108,140,255,.12)}
+    .log{height:120px;overflow:auto;padding:10px;background:#fbfdff;border-radius:10px;border:1px dashed #e9f3ff}
+
+    /* right column */
+    .right{display:flex;flex-direction:column;gap:12px;height:100%;}
+    .panel{background:#fff;border-radius:10px;padding:12px;box-shadow:0 6px 16px rgba(12,40,90,.02)}
+    .row{display:flex;align-items:center;justify-content:space-between}
+
+    footer{grid-column:1/-1;text-align:right;font-size:12px;color:#5b6b86}
+    @media (max-width:880px){.wrap{grid-template-columns:1fr;padding:12px}.pet-card{order:2}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Mini 2D Tamagotchi</h1>
+      <div>
+        <button id="saveBtn" class="btn secondary">저장</button>
+        <button id="resetBtn" class="btn secondary">초기화</button>
+        <a href="index.html"> <button id="backBtn" class="btn secondary">뒤로가기</button>
+        </a>
+      </div>
+    </header>
+
+    <section class="pet-card">
+      <div class="pet-view" id="petView" title="Pet">
+        <!-- background overlay: 사용자가 바꿀 이미지가 여기에 적용되고 페이드 인/아웃 됩니다 -->
+        <div id="bgOverlay" class="bg-overlay"></div>
+
+        <!-- 실제 이모지(또는 이미지)를 표시하는 영역 -->
+        <div id="petFace" class="pet-face breath">
+            <img src="vurry/기본뷰리.png" width="180">
+        </div>
+      </div>
+
+      <div class="stats panel">
+        <div class="stat"><strong>배고픔</strong><div class="bar"><i id="hungerBar" style="width:50%"></i></div><div id="hungerVal">50</div></div>
+        <div class="stat"><strong>행복</strong><div class="bar"><i id="happinessBar" style="width:60%"></i></div><div id="happinessVal">60</div></div>
+        <div class="stat"><strong>에너지</strong><div class="bar"><i id="energyBar" style="width:70%"></i></div><div id="energyVal">70</div></div>
+        <div class="stat"><strong>청결</strong><div class="bar"><i id="cleanBar" style="width:80%"></i></div><div id="cleanVal">80</div></div>
+      </div>
+
+      <div class="controls">
+        <button class="btn" id="feed">먹이기</button>
+        <button onclick="actionPlay(this)" class="btn" id="play">놀기</button>
+        <button class="btn" id="sleep">재우기</button>
+        <button class="btn" id="clean">정리</button>
+        <button class="btn secondary" id="rename">이름 변경</button>
+      </div>
+
+      <div class="panel log" id="log">게임 시작 — 반가워요!</div>
+    </section>
+
+    <aside class="right">
+      <div class="panel">
+        <div class="row"><div><strong id="petName">이름: 뽀로롱</strong><div style="font-size:12px;color:#6b7aa8">레벨: <span id="level">1</span> • 시간: <span id="timeAlive">0m</span></div></div><div></div></div>
+      </div>
+
+      <div class="panel">
+        <h3 style="margin:0 0 8px 0">상태 설명</h3>
+        <p style="margin:0;font-size:13px;color:#39507d">배고픔이 100이면 매우 배고픔(나쁨), 0이면 배불러요. 행동 버튼으로 즉각 효과를 낼 수 있습니다. 시간이 지남에 따라 수치가 감소/증가합니다.</p>
+      </div>
+
+      <div class="panel">
+        <h3 style="margin:0 0 8px 0">옵션</h3>
+        <div class="row"><span>자동 저장</span><label><input type="checkbox" id="autosave" checked> </label></div>
+        <div style="height:8px"></div>
+        <div class="row"><small>팁</small><span style="font-size:12px;color:#6b7aa8">빨간색이 되면 응급 조치가 필요해요!</span></div>
+      </div>
+      
+   <div class="panel">
+        <h3 style="margin:0 0 40px 0">광고</h3>
+        <div style="height:8px"></div>
+        <div> <img src='./ground/p1.png' alt='뷰리사진'width='230px' hspace="130px" ></div>
+        <div class="row"><small>백석대학교 컴퓨터공학부 1조</small><span style="font-size:12px;color:#6b7aa8">수몽이도 한번 키워보세요</span></div>
+      </div>
+    </aside>
+
+    <footer>파일로 저장 후 브라우저에서 열기 — 로컬 저장: localStorage</footer>
+  </div>
+
+  <script>
+  /*
+    Mini Tamagotchi - single-file educational example
+    - Save as tamagotchi.html and open in any modern browser
+    - Uses: localStorage, setInterval, DOM updates, simple animations
+    - Extend: add images, sounds, more actions, leveling, mini-games
+  */
+
+  // --- Game state ---
+  const DEFAULT = {
+    name: '뽀로롱',
+    hunger: 50,    // 0..100 (0 full, 100 starving)
+    happiness: 60, // 0..100
+    energy: 70,    // 0..100
+    clean: 80,     // 0..100
+    level: 1,
+    timeAliveMins: 0,
+    lastTick: Date.now()
+  };
+
+  const STORAGE_KEY = 'mini_tamagotchi_v1';
+  let state = loadState();
+  let lastInteractionTime = Date.now(); //상호작용 시간 변수 
+
+
+  // DOM refs
+  const petFace = document.getElementById('petFace');
+  const petView = document.getElementById('petView');
+  const bgOverlay = document.getElementById('bgOverlay');
+  const hungerBar = document.getElementById('hungerBar');
+  const happinessBar = document.getElementById('happinessBar');
+  const energyBar = document.getElementById('energyBar');
+  const cleanBar = document.getElementById('cleanBar');
+  const hungerVal = document.getElementById('hungerVal');
+  const happinessVal = document.getElementById('happinessVal');
+  const energyVal = document.getElementById('energyVal');
+  const cleanVal = document.getElementById('cleanVal');
+  const petNameEl = document.getElementById('petName');
+  const levelEl = document.getElementById('level');
+  const timeAliveEl = document.getElementById('timeAlive');
+  const logEl = document.getElementById('log');
+
+  // buttons
+  document.getElementById('feed').addEventListener('click',()=>actionFeed());
+  document.getElementById('play').addEventListener('click',()=>actionPlay());
+  document.getElementById('sleep').addEventListener('click',()=>actionSleep());
+  document.getElementById('clean').addEventListener('click',()=>actionClean());
+  document.getElementById('rename').addEventListener('click',()=>rename());
+  document.getElementById('saveBtn').addEventListener('click',()=>{saveState();notify('수동 저장 완료')});
+  document.getElementById('resetBtn').addEventListener('click',resetGame);
+  document.getElementById('autosave').addEventListener('change',()=>{});
+  document.getElementById('backBtn').addEventListener('click', backGame);
+
+  // core loop: tick every second but compute deltas for accuracy
+  let lastFrame = Date.now();
+  function gameLoop(){
+    const now = Date.now();
+    const dt = now - lastFrame; // ms
+    if(dt>=1000){
+      tick(Math.floor(dt/1000));
+      lastFrame = now;
+    }
+    requestAnimationFrame(gameLoop);
+  }
+
+  function tick(seconds){
+    // decay rates per minute => convert from seconds
+    // hunger increases (+) meaning worse; other stats decrease (-) meaning worse
+    const hungerRatePerMin = 2; // per minute
+    const happyLossPerMin = 1;
+    const energyLossPerMin = 2;
+    const cleanLossPerMin = 1.5;
+
+    const secsPerMin = 60;
+    const n = seconds;
+
+    state.hunger = clamp(state.hunger + (hungerRatePerMin/secsPerMin)*n, 0, 100);
+    state.happiness = clamp(state.happiness - (happyLossPerMin/secsPerMin)*n, 0, 100);
+    state.energy = clamp(state.energy - (energyLossPerMin/secsPerMin)*n, 0, 100);
+    state.clean = clamp(state.clean - (cleanLossPerMin/secsPerMin)*n, 0, 100);
+
+    // time alive increase by seconds
+    state.timeAliveMins += n/60;
+
+    // change face & reactions
+    updatePetAppearance();
+    render();
+
+    // autosave occasionally
+    const autosave = document.getElementById('autosave').checked;
+    if(autosave && Math.random()<0.08) saveState();
+
+    // if any stat critical, push log
+    if(state.hunger>90) notify('아주 배고파요! 먹여주세요!');
+    if(state.happiness<10) notify('우울해요... 같이 놀아주세요');
+    if(state.energy<5) notify('너무 피곤해요... 재워주세요');
+  }
+
+  /**
+   * changeBackground(tempImage, duration)
+   * - tempImage: 이미지 경로 (문자열). ex: 'images/feed-bg.jpg'
+   * - duration: 밀리초 (기본 1000)
+   *
+   * 동작: bgOverlay에 이미지를 넣고 불투명도를 올린 뒤 duration 후에 다시 투명하게 만들어 원래 배경으로 복구
+   * 안전장치: petView/bgOverlay가 없거나 tempImage가 비어있으면 아무 동작하지 않음
+   */
+  function changeBackground(tempImage, duration = 1000) {
+    if(!petView || !bgOverlay) return;
+    if(!tempImage) return;
+
+    // set background image on overlay
+    // 따옴표로 감싸 경로에 공백이 있어도 안전하게 처리
+    bgOverlay.style.backgroundImage = `url("${tempImage}")`;
+    // 보이게 (fade-in)
+    // 브라우저가 transition을 인식하도록 약간의 딜레이(다음 프레임) 적용
+    requestAnimationFrame(()=> {
+      bgOverlay.style.opacity = '1';
+    });
+
+    // fade-out 예약
+    setTimeout(()=> {
+      bgOverlay.style.opacity = '0';
+      // transition 끝난 뒤 실제 backgroundImage를 제거해서 메모리/네트워크 부담 줄임
+      const onTransitionEnd = (e) => {
+        if(e.propertyName === 'opacity' && bgOverlay.style.opacity === '0') {
+          bgOverlay.style.backgroundImage = '';
+          bgOverlay.removeEventListener('transitionend', onTransitionEnd);
+        }
+      };
+      bgOverlay.addEventListener('transitionend', onTransitionEnd);
+    }, duration);
+  }
+
+  // actions
+  function actionFeed(){
+    lastInteractionTime = Date.now();
+    changeStat('hunger', -20);
+    changeStat('clean', -3);
+    changeStat('happiness', +5);
+    notify('먹이를 주었습니다. 냠냠');
+    petFace.style.textAlign = 'center';
+    petFace.innerHTML = '<img src="vurry/먹는뷰리.png" width ="200">';
+    
+  }
+
+  let isPlayingAnimation = false; //놀기가 실행중인지 확인
+  function actionPlay(){
+    if (isPlayingAnimation) return;
+   
+
+    if(state.energy<10){ notify('에너지가 부족해요...'); return; }
+    changeStat('happiness', +20);
+    changeStat('energy', -15);
+    changeStat('hunger', +8);
+    notify('즐겁게 놀았어요!');
+    lastInteractionTime = Date.now();
+
+    petFace.innerHTML = '<img src="vurry/신난뷰리.png" width = "150">';
+    const duration = 1000; // 배경이 사라지는 시간 (밀리초) - 필요에 따라 조절
+    let bgImagePath = '';
+
+    switch(Math.floor(Math.random() * (7 - 1 + 1)) + 1)
+    {
+      case 1: changeBackground('images/creature.jpg', 1000);
+      break;
+      case 2: changeBackground('images/creature1.jpg', 1000);
+      break;
+      case 3: changeBackground('images/creature2.jpg', 1000);
+      break;
+      case 4: changeBackground('images/creature3.jpg', 1000);
+      break;
+      case 5: changeBackground('images/creature4.jpg', 1000);
+      break;
+      case 6: changeBackground('images/creature5.jpg', 1000);
+      break;
+      case 7: changeBackground('images/creature6.jpg', 1000);
+      break;
+    }
+    changeBackground(bgImagePath, duration); // <-- 배경 이미지 변경 및 사라지는 시간 설정
+    setTimeout(() => {
+        petFace.innerHTML = ''; // <-- '신난뷰리' 이미지 제거
+        isPlayingAnimation = false; // 애니메이션 종료 플래그 해제
+        updatePetAppearance();      // <-- 일반 상태로 펫 외형 업데이트
+    }, duration); // 배경이 사라지는 duration과 동일하게 설정
+  } 
+
+  function actionSleep(){
+    lastInteractionTime = Date.now();
+    changeStat('energy', +40);
+    changeStat('hunger', +15);
+    notify('잠을 잤어요. 기운이 회복되었습니다. zzz');
+    petFace.innerHTML = '<img src="vurry/자는뷰리.png" width ="150">';
+    
+  }
+
+  function actionClean(){
+    lastInteractionTime = Date.now();
+    changeStat('clean', +40);
+    changeStat('happiness', +5);
+    notify('청소 완료! 상쾌해요.');
+    petFace.innerHTML = '<img src="vurry/씻는뷰리.png" width ="150">';  }
+
+  // helpers
+  function changeStat(key, delta){
+    state[key] = clamp(state[key] + delta, 0, 100);
+    render();
+  }
+
+  function animatePet(symbol){
+    petFace.textContent = symbol;
+    petFace.classList.remove('breath');
+    petFace.style.transform = 'scale(1.12)';
+    setTimeout(()=>{ petFace.classList.add('breath'); petFace.style.transform=''; updatePetAppearance(); }, 600);
+  }
+
+  
+  
+  function updatePetAppearance(){
+    
+    const timeSinceLastInteraction = Date.now() - lastInteractionTime;  // 현재 시간과 마지막 상호작용 시간의 차이 (밀리초) 계산
+
+    if(state.energy<10) petFace.innerHTML = '<img src="vurry/졸린뷰리.png" width ="150">';
+    else if(state.hunger>80) petFace.innerHTML = '<img src="vurry/배고픈뷰리.png" width ="200">';
+    else if(state.happiness<20) petFace.innerHTML = '<img src="vurry/피곤한뷰리.png" width ="150">';
+    else if(state.clean<20) petFace.innerHTML = '<img src="vurry/청소하는뷰리.png" width ="150">';
+    else if(timeSinceLastInteraction >= 1000) {// <-- 1초 후 기본 이미지로 변경
+        petFace.innerHTML = '<img src="vurry/기본뷰리.png" width ="150">'; 
+    }
+  }
+
+  function render(){
+    hungerBar.style.width = state.hunger + '%';
+    happinessBar.style.width = state.happiness + '%';
+    energyBar.style.width = state.energy + '%';
+    cleanBar.style.width = state.clean + '%';
+
+    hungerVal.textContent = Math.round(state.hunger);
+    happinessVal.textContent = Math.round(state.happiness);
+    energyVal.textContent = Math.round(state.energy);
+    cleanVal.textContent = Math.round(state.clean);
+
+    petNameEl.textContent = '이름: ' + state.name;
+    levelEl.textContent = state.level;
+    timeAliveEl.textContent = Math.floor(state.timeAliveMins) + 'm';
+  }
+
+  function notify(text){
+    const t = document.createElement('div');
+    t.textContent = `• ${text}`;
+    logEl.prepend(t);
+    // limit
+    while(logEl.children.length>60) logEl.removeChild(logEl.lastChild);
+  }
+
+  function rename(){
+    const n = prompt('새 이름을 입력하세요', state.name);
+    if(n && n.trim()){ state.name = n.trim(); render(); notify('이름을 "' + state.name + '"(으)로 변경했습니다.'); saveState(); }
+  }
+
+  function saveState(){
+    state.lastTick = Date.now();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  function loadState(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return {...DEFAULT};
+      const s = JSON.parse(raw);
+      // basic migration: fill missing keys
+      return Object.assign({}, DEFAULT, s);
+    }catch(e){ console.error(e); return {...DEFAULT}; }
+  }
+
+  function resetGame(){
+    if(!confirm('게임을 초기화 하시겠어요? 저장된 데이터가 사라집니다.')) return;
+    state = {...DEFAULT};
+    localStorage.removeItem(STORAGE_KEY);
+    render();
+    notify('게임을 초기화했습니다.');
+  }
+
+  function backGame(){
+    window.location.href = "index.html";
+  }
+
+
+  function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+
+  // initial render
+  render();
+  updatePetAppearance();
+  // start loop
+  requestAnimationFrame(gameLoop);
+
+  // save before unload
+  window.addEventListener('beforeunload',()=>{ saveState(); });
+
+  </script>
+</body>
+</html>
