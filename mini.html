@@ -43,12 +43,12 @@
 <body>
   <div class="wrap">
     <header>
-      <h1>Mini 2D Tamagotchi</h1>
+      <h1></h1>
       <div>
         <button id="saveBtn" class="btn secondary">저장</button>
         <button id="resetBtn" class="btn secondary">초기화</button>
-        <a href="index.html"> <button id="backBtn" class="btn secondary">뒤로가기</button>
-          
+        <a href="index.html">
+          <button id="backBtn" class="btn secondary">뒤로가기</button>
         </a>
       </div>
     </header>
@@ -68,7 +68,7 @@
         <div class="stat"><strong>행복</strong><div class="bar"><i id="happinessBar" style="width:60%"></i></div><div id="happinessVal">60</div></div>
         <div class="stat"><strong>에너지</strong><div class="bar"><i id="energyBar" style="width:70%"></i></div><div id="energyVal">70</div></div>
         <div class="stat"><strong>청결</strong><div class="bar"><i id="cleanBar" style="width:80%"></i></div><div id="cleanVal">80</div></div>
-      
+      </div>
 
       <div class="controls">
         <button class="btn" id="feed">먹이기</button>
@@ -83,32 +83,40 @@
 
     <aside class="right">
       <div class="panel">
-        <div class="row"><div><strong id="petName">이름: 뽀로롱</strong><div style="font-size:12px;color:#6b7aa8">레벨: <span id="level">1</span> • 시간: <span id="timeAlive">0m</span></div></div><div></div></div>
+        <div class="row"><div><strong id="petName">이름: 뽀로롱</strong><div style="font-size:12px;color:#6b7aa8"></span> 시간: <span id="timeAlive">0m</span></div></div><div></div></div>
       </div>
 
       <div class="panel">
         <h3 style="margin:0 0 8px 0">상태 설명</h3>
-        <p style="margin:0;font-size:13px;color:#39507d">배고픔이 100이면 매우 배고픔(나쁨), 0이면 배불러요. 행동 버튼으로 즉각 효과를 낼 수 있습니다. 에너지가 부족하면 캐릭터의 행동이 제한됩니다.</p>
+        <p style="margin:0;font-size:13px;color:#39507d">포만감이 0이면 매우 배고픔(나쁨), 100이면 배불러요.<br>행동 버튼으로 즉각 효과를 낼 수 있습니다.<br>에너지가 부족하면 캐릭터의 행동이 제한됩니다.</p>
       </div>
 
       <div class="panel">
         <h3 style="margin:0 0 8px 0">옵션</h3>
         <div class="row"><span>자동 저장</span><label><input type="checkbox" id="autosave" checked> </label></div>
         <div style="height:8px"></div>
-        <div class="row"><small>팁</small><span style="font-size:12px;color:#6b7aa8">빨간색이 되면 응급 조치가 필요해요!</span></div>
       </div>
 
-      <div class="panel">
-        <h3 style="margin:0 0 40px 0">광고</h3>
-        <div style="height:8px"></div>
-        <div> <img src='./ground/v1.png' alt='뷰리사진'width='230px' hspace="130px" ></div>
-        <div class="row"><small>백석대학교 컴퓨터공학부 1조</small><span style="font-size:12px;color:#6b7aa8">수몽이도 한번 키워보세요</span></div>
-      </div>
-    </aside>
-
-    <footer>파일로 저장 후 브라우저에서 열기 — 로컬 저장: localStorage</footer>
+      <div class="panel" id="achievementsPanel">
+  <h3 style="margin:0 0 8px 0">업적</h3>
+  <div id="achievementsList" style="font-size:13px;color:#39507d">
   </div>
+</div>
+      <div class="panel">
+        <h3 style="margin:0 0 40px 0"></h3>
+        <div style="height:8px"></div>
+        <div>
+        <a href="https://www.smu.ac.kr" target="_blank">
+          <img src="./image/상명.JPG"
+            alt="상명대홈페이지" 
+            width="450px">
+        </a>
+        </div>
+        <div class="row"><small></small><span style="font-size:12px;color:#6b7aa8"></span></div>
+      </div>
 
+    </aside>
+  </div>
 
   <script>
   /*
@@ -118,6 +126,71 @@
     - Extend: add images, sounds, more actions, leveling, mini-games
   */
 
+  let achievements = [
+  {
+    id: 'first_play',
+    name: '첫 놀이!',
+    desc: '처음으로 놀기 버튼을 눌렀습니다.',
+    achieved: false,
+    check: () => actionCounts.play >= 1
+  },
+  {
+    id: 'clean_master',
+    name: '청소왕',
+    desc: '청소를 10번 완료했습니다.',
+    achieved: false,
+    check: () => actionCounts.clean >= 10
+  },
+  {
+    id: 'happy_100',
+    name: '행복 MAX!',
+    desc: '행복 수치를 100까지 올렸습니다.',
+    achieved: false,
+    check: () => state.happiness >= 100
+  },
+  {
+    id: 'survive_1_hour',
+    name: '1시간 생존!',
+    desc: '키운 시간이 60분을 넘었습니다.',
+    achieved: false,
+    check: () => state.timeAliveMins >= 60
+  }
+];
+
+let actionCounts = {
+  play: 0,
+  clean: 0,
+  feed: 0,
+  sleep: 0
+};
+
+function checkAchievements() {
+  achievements.forEach(a => {
+    if (!a.achieved && a.check()) {
+      a.achieved = true;
+      notify(`🎉 업적 달성: ${a.name}`);
+      renderAchievements();
+      saveState();
+    }
+  });
+}
+
+function renderAchievements() {
+  const box = document.getElementById('achievementsList');
+  box.innerHTML = '';
+
+  achievements.forEach(a => {
+    const item = document.createElement('div');
+    item.style.marginBottom = '6px';
+
+    item.innerHTML = a.achieved 
+      ? `✅ <strong>${a.name}</strong><br><small>${a.desc}</small>`
+      : `⬜ ${a.name}`;
+
+    box.appendChild(item);
+  });
+}
+
   // --- Game state ---
   const DEFAULT = {
     name: '수몽이',
@@ -125,9 +198,8 @@
     happiness: 60, // 0..100
     energy: 70,    // 0..100
     clean: 80,     // 0..100
-    level: 1,
     timeAliveMins: 0,
-    lastTick: Date.now(),
+    lastTick: Date.now()
   };
 
   const STORAGE_KEY = 'mini_tamagotchi_v1';
@@ -146,11 +218,8 @@
   const energyVal = document.getElementById('energyVal');
   const cleanVal = document.getElementById('cleanVal');
   const petNameEl = document.getElementById('petName');
-  const levelEl = document.getElementById('level');
   const timeAliveEl = document.getElementById('timeAlive');
   const logEl = document.getElementById('log');
-  const expBar = document.getElementById('expBar');
-  const expVal = document.getElementById('expVal');
 
   // buttons
   document.getElementById('feed').addEventListener('click',()=>actionFeed());
@@ -161,6 +230,7 @@
   document.getElementById('saveBtn').addEventListener('click',()=>{saveState();notify('수동 저장 완료')});
   document.getElementById('resetBtn').addEventListener('click',resetGame);
   document.getElementById('autosave').addEventListener('change',()=>{});
+  
 
   // core loop: tick every second but compute deltas for accuracy
   let lastFrame = Date.now();
@@ -181,6 +251,8 @@
     const happyLossPerMin = 1;
     const energyLossPerMin = 2;
     const cleanLossPerMin = 1.5;
+
+    checkAchievements();
 
     const secsPerMin = 60;
     const n = seconds;
@@ -249,16 +321,22 @@
     changeStat('happiness', +5);
     notify('먹이를 주었습니다. 냠냠');
     animatePet('');
-    changeBackground('mk/병천순대.png', 300); // 임시 배경 (1초)
+    changeBackground('mk/병천순대.png', 300); // 임시 배경 (1초) 
   }
 
   function actionPlay(){
 
     if(state.energy<20){ notify('에너지가 부족해요...'); return; }
+
+    actionCounts.play++;       
+    checkAchievements();
+
     changeStat('happiness', +20);
     changeStat('energy', -15);
     changeStat('hunger', -8);
     notify('즐겁게 놀았어요!');
+
+    
     switch(Math.floor(Math.random() * (7 - 1 + 1)) + 1)
     {
       case 1: changeBackground('ground/p8.png', 1000);
@@ -280,6 +358,9 @@
   }
 
   function actionSleep(){
+
+    actionCounts.sleep++;       
+    checkAchievements();
     // instant nap
     changeStat('energy', +40);
     changeStat('hunger', -15);
@@ -289,13 +370,15 @@
   }
 
   function actionClean(){
+
+    actionCounts.clean++;       
+    checkAchievements();
     changeStat('clean', +40);
     changeStat('happiness', -30);
     changeStat('energy', -15);
     notify('청소 완료! 상쾌해요.');
     animatePet('');
     changeBackground('mk/청소하는.png', 300);
-
   }
 
   // helpers
@@ -314,20 +397,14 @@
   function updatePetAppearance(){
     // change emoji according to mood
     if(state.energy<20) changeBackground('mk/피곤한.png');
-    else if(state.hunger<20) changeBackground('mk/배고픈 3.png');
+    else if(state.hunger<=20) changeBackground('mk/배고픈 3.png');
     else if(state.happiness<20) changeBackground('mk/기절1.png');
     else if(state.clean<20) changeBackground('mk/더러운(몸상태).png');
     else
     changeBackground('mk/기본.png');
   }
 
-
-    function render(){
-    
-    petNameEl.textContent = '이름: ' + state.name;
-    levelEl.textContent = state.level;
-    timeAliveEl.textContent = Math.floor(state.timeAliveMins) + 'm';
-
+  function render(){
     hungerBar.style.width = state.hunger + '%';
     happinessBar.style.width = state.happiness + '%';
     energyBar.style.width = state.energy + '%';
@@ -339,8 +416,9 @@
     cleanVal.textContent = Math.round(state.clean);
 
     petNameEl.textContent = '이름: ' + state.name;
-    levelEl.textContent = state.level;
     timeAliveEl.textContent = Math.floor(state.timeAliveMins) + 'm';
+
+    renderAchievements();
   }
 
   function notify(text){
