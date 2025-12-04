@@ -43,6 +43,7 @@
 <body>
   <div class="wrap">
     <header>
+      <h1></h1>
       <div>
         <button id="saveBtn" class="btn secondary">저장</button>
         <button id="resetBtn" class="btn secondary">초기화</button>
@@ -63,7 +64,7 @@
       </div>
 
       <div class="stats panel">
-        <div class="stat"><strong>배고픔</strong><div class="bar"><i id="hungerBar" style="width:50%"></i></div><div id="hungerVal">50</div></div>
+        <div class="stat"><strong>포만감</strong><div class="bar"><i id="hungerBar" style="width:50%"></i></div><div id="hungerVal">50</div></div>
         <div class="stat"><strong>행복</strong><div class="bar"><i id="happinessBar" style="width:60%"></i></div><div id="happinessVal">60</div></div>
         <div class="stat"><strong>에너지</strong><div class="bar"><i id="energyBar" style="width:70%"></i></div><div id="energyVal">70</div></div>
         <div class="stat"><strong>청결</strong><div class="bar"><i id="cleanBar" style="width:80%"></i></div><div id="cleanVal">80</div></div>
@@ -103,9 +104,17 @@
         <div class="panel">
         <h3 style="margin:0 0 40px 0">광고</h3>
         <div style="height:8px"></div>
-        <div> <img src='./image/백석.JPG' alt='뷰리사진'width='450px'></div>
+        <div>
+          <a href="https://www.bu.ac.kr/" target="_blank"> 
+          <img src='./image/백석.jpg'
+           alt='뷰리사진'
+           width='450px'>
+          </a>
+        
+        </div>
       </div>
     </aside>
+
 
   </div>
 
@@ -180,14 +189,12 @@ function renderAchievements() {
     happiness: 60, // 0..100
     energy: 70,    // 0..100
     clean: 80,     // 0..100
-    level: 1,
     timeAliveMins: 0,
     lastTick: Date.now()
   };
 
   const STORAGE_KEY = 'mini_tamagotchi_v1';
   let state = loadState();
-  let lastInteractionTime = Date.now(); //상호작용 시간 변수 
 
 
   // DOM refs
@@ -302,7 +309,7 @@ function renderAchievements() {
   // actions
   function actionFeed(){
     lastInteractionTime = Date.now();
-    changeStat('hunger', -20);
+    changeStat('hunger', +20);
     changeStat('clean', -3);
     changeStat('happiness', +5);
     notify('먹이를 주었습니다. 냠냠');
@@ -320,7 +327,7 @@ function renderAchievements() {
     actionCounts.play++; 
     changeStat('happiness', +20);
     changeStat('energy', -15);
-    changeStat('hunger', +8);
+    changeStat('hunger', -8);
     notify('즐겁게 놀았어요!');
     lastInteractionTime = Date.now();
 
@@ -367,8 +374,10 @@ function renderAchievements() {
     actionCounts.clean++;  
     lastInteractionTime = Date.now();
     changeStat('clean', +40);
-    changeStat('happiness', +5);
+    changeStat('happiness', -30);
+    changeStat('energy', -15);
     notify('청소 완료! 상쾌해요.');
+    animatePet('');
     petFace.innerHTML = '<img src="vurry/씻는뷰리.png" width ="150">';  }
 
   // helpers
