@@ -83,7 +83,7 @@
 
     <aside class="right">
       <div class="panel">
-        <div class="row"><div><strong id="petName">이름: 뽀로롱</strong><div style="font-size:12px;color:#6b7aa8">레벨: <span id="level">1</span> • 시간: <span id="timeAlive">0m</span></div></div><div></div></div>
+        <div class="row"><div><strong id="petName">이름: 뷰리</strong><div style="font-size:12px;color:#6b7aa8"><span id="level">1</span>시간: <span id="timeAlive">0m</span></div></div><div></div></div>
       </div>
 
       <div class="panel">
@@ -309,12 +309,15 @@ function renderAchievements() {
   // actions
   function actionFeed(){
     lastInteractionTime = Date.now();
+    
     changeStat('hunger', +20);
     changeStat('clean', -3);
     changeStat('happiness', +5);
     notify('먹이를 주었습니다. 냠냠');
     petFace.style.textAlign = 'center';
     petFace.innerHTML = '<img src="vurry/먹는뷰리.png" width ="200">';
+    actionCounts.feed++;
+    checkAchievements();
     
   }
 
@@ -329,6 +332,8 @@ function renderAchievements() {
     changeStat('energy', -15);
     changeStat('hunger', -8);
     notify('즐겁게 놀았어요!');
+    actionCounts.play++; // 액션 카운트 업데이트
+    checkAchievements(); // ⭐ 추가: 업적 체크
     lastInteractionTime = Date.now();
 
     petFace.innerHTML = '<img src="vurry/신난뷰리.png" width = "150">';
@@ -362,16 +367,18 @@ function renderAchievements() {
 
   function actionSleep(){
     actionCounts.sleep++;
+    checkAchievements();
     lastInteractionTime = Date.now();
     changeStat('energy', +40);
-    changeStat('hunger', +15);
+    changeStat('hunger', -15);
     notify('잠을 잤어요. 기운이 회복되었습니다. zzz');
     petFace.innerHTML = '<img src="vurry/자는뷰리.png" width ="150">';
     
   }
 
   function actionClean(){
-    actionCounts.clean++;  
+    actionCounts.clean++; // 액션 카운트 업데이트
+    checkAchievements();  
     lastInteractionTime = Date.now();
     changeStat('clean', +40);
     changeStat('happiness', -30);
@@ -384,6 +391,7 @@ function renderAchievements() {
   function changeStat(key, delta){
     state[key] = clamp(state[key] + delta, 0, 100);
     render();
+    checkAchievements();
   }
 
   function animatePet(symbol){
